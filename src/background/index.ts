@@ -15,8 +15,9 @@ import type { Message, DownloadState } from "../shared/types";
 const DICTIONARY_URL =
   "https://github.com/oulico/dicfr/releases/download/dict-v1/french-dictionary.db";
 
+const KEEP_ALIVE_ALARM = "dicfr-keep-alive";
+
 let downloadState: DownloadState = { status: "idle", progress: 0 };
-let abortController: AbortController | null = null;
 
 async function init() {
   try {
@@ -37,12 +38,19 @@ async function init() {
   }
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-  init();
-});
+chrome.runtime.onInstalled.addListener(() => init());
+chrome.runtime.onStartup.addListener(() => init());
 
-chrome.runtime.onStartup.addListener(() => {
-  init();
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === KEEP_ALIVE_ALARM) {
+    const active =
+      downloadState.status === "downloading" ||
+      downloadState.status === "processing";
+    console.log(`[dicfr] keep-alive tick (downloading=${active})`);
+    if (!active) {
+      chrome.alarms.clear(KEEP_ALIVE_ALARM);
+    }
+  }
 });
 
 chrome.runtime.onMessage.addListener((msg: Message, _sender, sendResponse) => {
@@ -60,18 +68,20 @@ async function startDownload(): Promise<DownloadState> {
     return downloadState;
   }
 
-  abortController = new AbortController();
   downloadState = { status: "downloading", progress: 0, bytesLoaded: 0 };
-  console.log(`[dicfr] Downloading from: ${DICTIONARY_URL}`);
+
+  chrome.alarms.create(KEEP_ALIVE_ALARM, { periodInMinutes: 0.45 });
+  console.log(`[dicfr] Downloading: ${DICTIONARY_URL}`);
 
   try {
-    const response = await fetch(DICTIONARY_URL, { signal: abortController.signal });
+    const response = await fetch(DICTIONARY_URL);
     if (!response.ok || !response.body) {
       throw new Error(`HTTP ${response.status} ${response.statusText}`);
     }
 
     const contentLength = response.headers.get("Content-Length");
     const totalSize = contentLength ? parseInt(contentLength, 10) : 0;
+    console.log(`[dicfr] Content-Length: ${totalSize} (${(totalSize / 1024 / 1024).toFixed(1)} MB)`);
 
     const reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
@@ -84,19 +94,10 @@ async function startDownload(): Promise<DownloadState> {
       chunks.push(value);
       loaded += value.length;
 
-      if (totalSize > 0) {
-        downloadState = {
-          status: "downloading",
-          progress: Math.min(99, Math.round((loaded / totalSize) * 100)),
-          bytesLoaded: loaded,
-        };
-      } else {
-        downloadState = {
-          status: "downloading",
-          progress: 0,
-          bytesLoaded: loaded,
-        };
-      }
+      const progress = totalSize > 0
+        ? Math.min(99, Math.round((loaded / totalSize) * 100))
+        : 0;
+      downloadState = { status: "downloading", progress, bytesLoaded: loaded };
     }
 
     downloadState = { status: "processing", progress: 100, bytesLoaded: loaded };
@@ -112,17 +113,15 @@ async function startDownload(): Promise<DownloadState> {
     await loadFromBuffer(combined.buffer);
     downloadState = { status: "complete", progress: 100, bytesLoaded: loaded };
     console.log(`[dicfr] Dictionary loaded — ${getDictSize()} words`);
-    return downloadState;
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
-    if (error.name === "AbortError") {
-      downloadState = { status: "idle", progress: 0 };
-    } else {
-      downloadState = { status: "error", progress: 0, error: error.message };
-      console.error("[dicfr] Download failed:", error);
-    }
-    return downloadState;
+    downloadState = { status: "error", progress: 0, error: error.message };
+    console.error("[dicfr] Download failed:", error);
+  } finally {
+    chrome.alarms.clear(KEEP_ALIVE_ALARM);
   }
+
+  return downloadState;
 }
 
 async function handleMessage(msg: Message) {

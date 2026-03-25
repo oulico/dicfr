@@ -1,9 +1,12 @@
-import type { HistoryItem, DownloadState } from "../shared/types";
+import type { HistoryItem, DownloadState, Word, SimilarWord } from "../shared/types";
 
 const listEl = document.getElementById("word-list") as HTMLElement;
 const countEl = document.getElementById("count") as HTMLElement;
 const emptyEl = document.getElementById("empty") as HTMLElement;
 const statsEl = document.getElementById("stats") as HTMLElement;
+
+const searchInput = document.getElementById("search-input") as HTMLInputElement;
+const searchResult = document.getElementById("search-result") as HTMLElement;
 
 const dlSection = document.getElementById("download-section") as HTMLElement;
 const dlBtn = document.getElementById("dl-btn") as HTMLButtonElement;
@@ -14,6 +17,7 @@ const dlErrorEl = document.getElementById("dl-error") as HTMLElement;
 
 const SEED_THRESHOLD = 200;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
+const searchStack: string[] = [];
 
 async function loadHistory() {
   const [historyRes, statsRes] = await Promise.all([
@@ -51,9 +55,14 @@ async function loadHistory() {
     const row = document.createElement("div");
     row.className = "word-item";
 
-    const wordEl = document.createElement("span");
-    wordEl.className = "word";
+    const wordEl = document.createElement("a");
+    wordEl.className = "word sr-link";
     wordEl.textContent = item.word;
+    wordEl.dataset.word = item.word;
+    wordEl.addEventListener("click", () => {
+      searchInput.value = item.word;
+      searchWord(item.word);
+    });
 
     const defEl = document.createElement("span");
     defEl.className = "definition";
@@ -89,6 +98,169 @@ async function loadHistory() {
     listEl.appendChild(row);
   }
 }
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+
+searchInput.addEventListener("input", () => {
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    const q = searchInput.value.trim();
+    if (q.length >= 2) {
+      searchWord(q);
+    } else {
+      hideSearch();
+    }
+  }, 200);
+});
+
+searchInput.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    searchInput.value = "";
+    hideSearch();
+  }
+});
+
+function hideSearch() {
+  searchResult.classList.remove("visible");
+  searchResult.innerHTML = "";
+  searchStack.length = 0;
+}
+
+async function searchWord(word: string) {
+  const res = await chrome.runtime.sendMessage({ type: "LOOKUP", word });
+
+  searchResult.classList.add("visible");
+  searchResult.innerHTML = "";
+
+  if (!res.found || !res.word) {
+    const similarRes = await chrome.runtime.sendMessage({ type: "GET_SIMILAR", word });
+    const similar: SimilarWord[] = similarRes.words || [];
+
+    if (similar.length > 0) {
+      renderNotFound(word, similar);
+    } else {
+      searchResult.innerHTML = `<span class="sr-not-found">No results for "${word}"</span>`;
+    }
+    return;
+  }
+
+  searchStack.push(word);
+  renderWord(res.word);
+}
+
+function renderWord(w: Word) {
+  searchResult.innerHTML = "";
+
+  const header = document.createElement("div");
+  header.className = "sr-header";
+
+  if (searchStack.length > 1) {
+    const back = document.createElement("button");
+    back.type = "button";
+    back.className = "sr-back";
+    back.textContent = "\u2190";
+    back.addEventListener("click", () => {
+      searchStack.pop();
+      const prev = searchStack[searchStack.length - 1];
+      searchStack.pop();
+      searchInput.value = prev;
+      searchWord(prev);
+    });
+    header.appendChild(back);
+  }
+
+  const wordEl = document.createElement("span");
+  wordEl.className = "sr-word";
+  wordEl.textContent = w.word;
+  header.appendChild(wordEl);
+
+  if (w.pos || w.gender) {
+    const posEl = document.createElement("span");
+    posEl.className = "sr-pos";
+    posEl.textContent = `(${[w.pos, w.gender].filter(Boolean).join(", ")})`;
+    header.appendChild(posEl);
+  }
+
+  searchResult.appendChild(header);
+
+  if (w.definitions.length > 0) {
+    const defsEl = document.createElement("div");
+    defsEl.className = "sr-defs";
+    for (const d of w.definitions.slice(0, 5)) {
+      const defEl = document.createElement("div");
+      defEl.className = "sr-def";
+      const text = d.translation || d.definition;
+      defEl.innerHTML = `\u2022 ${makeClickable(text)}`;
+      defsEl.appendChild(defEl);
+    }
+    searchResult.appendChild(defsEl);
+  }
+
+  if (w.examples.length > 0) {
+    const ex = w.examples[0];
+    if (ex.example) {
+      const exEl = document.createElement("div");
+      exEl.className = "sr-example";
+      exEl.textContent = `"${ex.example}"`;
+      if (ex.translation) {
+        exEl.textContent += ` — ${ex.translation}`;
+      }
+      searchResult.appendChild(exEl);
+    }
+  }
+
+  chrome.runtime.sendMessage({ type: "GET_SIMILAR", word: w.word }).then((res) => {
+    const similar: SimilarWord[] = (res.words || []).filter(
+      (s: SimilarWord) => s.word !== w.word
+    );
+    if (similar.length > 0) {
+      renderSimilar(similar);
+    }
+  });
+}
+
+function makeClickable(text: string): string {
+  return text.replace(/[a-zA-ZÀ-ÿ'-]{2,}/g, (match) => {
+    return `<a class="sr-link" data-word="${match}">${match}</a>`;
+  });
+}
+
+function renderNotFound(word: string, similar: SimilarWord[]) {
+  searchResult.innerHTML = `<span class="sr-not-found">"${word}" not found</span>`;
+  if (similar.length > 0) {
+    renderSimilar(similar);
+  }
+}
+
+function renderSimilar(similar: SimilarWord[]) {
+  const container = document.createElement("div");
+  container.className = "sr-similar";
+
+  const label = document.createElement("div");
+  label.className = "sr-similar-label";
+  label.textContent = "Similar words";
+  container.appendChild(label);
+
+  const wordsEl = document.createElement("div");
+  wordsEl.className = "sr-similar-words";
+  for (const s of similar.slice(0, 8)) {
+    const link = document.createElement("a");
+    link.className = "sr-link";
+    link.dataset.word = s.word;
+    link.textContent = s.word;
+    wordsEl.appendChild(link);
+  }
+  container.appendChild(wordsEl);
+  searchResult.appendChild(container);
+}
+
+searchResult.addEventListener("click", (e) => {
+  const target = e.target as HTMLElement;
+  if (target.classList.contains("sr-link") && target.dataset.word) {
+    searchInput.value = target.dataset.word;
+    searchWord(target.dataset.word);
+  }
+});
 
 function formatTime(ts: number): string {
   const diff = Date.now() - ts;

@@ -112,6 +112,32 @@ function parseJSONField(field: unknown): unknown[] {
   return [];
 }
 
+function normalizeDefs(raw: unknown[]): Word["definitions"] {
+  return raw.map((item) => {
+    if (typeof item === "string") return { definition: item };
+    if (typeof item === "object" && item !== null) {
+      const obj = item as Record<string, unknown>;
+      return {
+        definition: String(obj.definition || obj.gloss || ""),
+        translation: obj.translation ? String(obj.translation) : undefined,
+      };
+    }
+    return { definition: String(item) };
+  });
+}
+
+function normalizeExamples(raw: unknown[]): Word["examples"] {
+  return raw
+    .filter((item) => typeof item === "object" && item !== null)
+    .map((item) => {
+      const obj = item as Record<string, unknown>;
+      return {
+        example: String(obj.text || obj.example || ""),
+        translation: obj.translation ? String(obj.translation) : undefined,
+      };
+    });
+}
+
 export function getWord(word: string): Word | null {
   try {
     const rows = execQuery(
@@ -126,8 +152,8 @@ export function getWord(word: string): Word | null {
       word: r.word as string,
       pos: (r.pos as string) || null,
       gender: (r.gender as string) || null,
-      definitions: parseJSONField(r.definitions) as Word["definitions"],
-      examples: parseJSONField(r.examples) as Word["examples"],
+      definitions: normalizeDefs(parseJSONField(r.definitions)),
+      examples: normalizeExamples(parseJSONField(r.examples)),
     };
   } catch {
     return null;

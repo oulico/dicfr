@@ -28,6 +28,99 @@
       font-size: 11px;
       color: #888;
     }
+    #search-bar {
+      padding: 8px 14px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      gap: 0;
+    }
+    #search-input {
+      flex: 1;
+      padding: 5px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 13px;
+      outline: none;
+    }
+    #search-input:focus {
+      border-color: #999;
+    }
+    #search-result {
+      display: none;
+      padding: 12px 14px;
+      border-bottom: 1px solid #eee;
+      background: #fafbfc;
+    }
+    #search-result.visible {
+      display: block;
+    }
+    .sr-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .sr-back {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      color: #888;
+      padding: 0 4px;
+    }
+    .sr-back:hover { color: #333; }
+    .sr-word {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+    .sr-pos {
+      font-size: 11px;
+      color: #888;
+    }
+    .sr-defs {
+      margin: 4px 0;
+    }
+    .sr-def {
+      margin: 3px 0;
+      font-size: 13px;
+      color: #333;
+    }
+    .sr-example {
+      font-size: 12px;
+      color: #666;
+      font-style: italic;
+      margin-top: 6px;
+    }
+    .sr-similar {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #eee;
+    }
+    .sr-similar-label {
+      font-size: 10px;
+      color: #aaa;
+      margin-bottom: 4px;
+    }
+    .sr-similar-words {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .sr-link {
+      color: #2563eb;
+      cursor: pointer;
+      text-decoration: none;
+      border-bottom: 1px dotted #93b5f5;
+    }
+    .sr-link:hover {
+      color: #1d4ed8;
+      border-bottom-style: solid;
+    }
+    .sr-not-found {
+      color: #999;
+      font-size: 12px;
+    }
     #stats {
       font-size: 10px;
       color: #aaa;
@@ -166,6 +259,10 @@
     <h1>dicfr</h1>
     <span id="count"></span>
   </header>
+  <div id="search-bar">
+    <input id="search-input" type="text" placeholder="Search a word..." autocomplete="off" />
+  </div>
+  <div id="search-result"></div>
   <div id="stats"></div>
   <div id="download-section">
     <div class="dl-label">Download full dictionary (~550 MB)</div>
