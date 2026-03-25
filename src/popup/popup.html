@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 320px;
+      min-height: 200px;
+      max-height: 500px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      color: #111;
+      background: #fff;
+    }
+    header {
+      padding: 12px 14px 8px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    #count {
+      font-size: 11px;
+      color: #888;
+    }
+    #stats {
+      font-size: 10px;
+      color: #aaa;
+      padding: 4px 14px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    #empty {
+      display: none;
+      padding: 40px 14px;
+      text-align: center;
+      color: #aaa;
+      font-size: 12px;
+    }
+    #word-list {
+      overflow-y: auto;
+      max-height: 420px;
+    }
+    .word-item {
+      padding: 8px 14px;
+      border-bottom: 1px solid #f5f5f5;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 8px;
+    }
+    .word-item:hover {
+      background: #fafafa;
+    }
+    .word {
+      font-weight: 600;
+      color: #1a1a2e;
+    }
+    .delete-btn {
+      grid-row: 1 / 3;
+      grid-column: 2;
+      align-self: center;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #ccc;
+      font-size: 16px;
+      padding: 0 4px;
+      line-height: 1;
+    }
+    .delete-btn:hover {
+      color: #e44;
+    }
+    .definition {
+      grid-column: 1;
+      color: #444;
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .meta {
+      grid-column: 1;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .time {
+      font-size: 10px;
+      color: #bbb;
+    }
+    .lookup-count {
+      font-size: 10px;
+      color: #aaa;
+      background: #f5f5f5;
+      padding: 0 4px;
+      border-radius: 3px;
+    }
+    #download-section {
+      display: none;
+      padding: 12px 14px;
+      border-bottom: 1px solid #eee;
+      background: #fafbfc;
+    }
+    #download-section.visible {
+      display: block;
+    }
+    .dl-label {
+      font-size: 11px;
+      color: #555;
+      margin-bottom: 8px;
+    }
+    #dl-btn {
+      width: 100%;
+      padding: 6px 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fff;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    #dl-btn:hover {
+      background: #f0f0f0;
+    }
+    #dl-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    .dl-progress {
+      display: none;
+      margin-top: 4px;
+    }
+    .dl-progress.visible {
+      display: block;
+    }
+    .dl-bar-bg {
+      height: 4px;
+      background: #eee;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .dl-bar {
+      height: 100%;
+      background: #4a9;
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    .dl-status {
+      font-size: 10px;
+      color: #888;
+      margin-top: 4px;
+    }
+    .dl-error {
+      font-size: 11px;
+      color: #c44;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>dicfr</h1>
+    <span id="count"></span>
+  </header>
+  <div id="stats"></div>
+  <div id="download-section">
+    <div class="dl-label">Download full dictionary (~550 MB)</div>
+    <button id="dl-btn" type="button">Download Dictionary</button>
+    <div id="dl-progress" class="dl-progress">
+      <div class="dl-bar-bg"><div id="dl-bar" class="dl-bar"></div></div>
+      <div id="dl-status" class="dl-status"></div>
+    </div>
+    <div id="dl-error" class="dl-error"></div>
+  </div>
+  <div id="empty">
+    Select a French word on any page to look it up.
+  </div>
+  <div id="word-list"></div>
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
