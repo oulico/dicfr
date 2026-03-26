@@ -1,6 +1,6 @@
 import initSqlJs, { type Database, type SqlValue } from "sql.js";
 import { openDB, type IDBPDatabase } from "idb";
-import type { Word, SimilarWord, HistoryItem } from "../shared/types";
+import type { Word, SimilarWord, HistoryItem, ExportData, ExportWord } from "../shared/types";
 
 let db: Database | null = null;
 let SQL: Awaited<ReturnType<typeof initSqlJs>> | null = null;
@@ -261,4 +261,81 @@ export async function getHistoryCount(): Promise<number> {
 export async function deleteHistory(id: string): Promise<void> {
   const idb = await getIDB();
   await idb.delete(IDB_HISTORY_STORE, id);
+}
+
+export async function getAllHistory(): Promise<HistoryItem[]> {
+  const idb = await getIDB();
+  const items: HistoryItem[] = await idb.getAll(IDB_HISTORY_STORE);
+  items.sort((a, b) => b.lastLookedUpAt - a.lastLookedUpAt);
+  return items;
+}
+
+export async function exportHistory(): Promise<ExportData> {
+  const items = await getAllHistory();
+  const words: ExportWord[] = items.map((item) => ({
+    word: item.word,
+    normalizedWord: item.normalizedWord,
+    definition: item.definition,
+    pos: item.pos ?? null,
+    gender: item.gender ?? null,
+    lookupCount: item.lookupCount,
+    firstLookupAt: new Date(item.createdAt).toISOString(),
+    lastLookupAt: new Date(item.lastLookedUpAt).toISOString(),
+    mastery: item.mastery ?? 0,
+    nextReviewAt: item.nextReviewAt ? new Date(item.nextReviewAt).toISOString() : null,
+    reviewCount: item.reviewCount ?? 0,
+    lastReviewedAt: item.lastReviewedAt ? new Date(item.lastReviewedAt).toISOString() : null,
+    easeFactor: item.easeFactor ?? 2.5,
+  }));
+
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    source: "dicfr-extension",
+    words,
+  };
+}
+
+export async function importHistory(data: ExportData): Promise<{ merged: number; added: number }> {
+  const idb = await getIDB();
+  let merged = 0;
+  let added = 0;
+
+  for (const w of data.words) {
+    const existing = await idb.getFromIndex(IDB_HISTORY_STORE, "normalizedWord", w.normalizedWord);
+
+    if (existing) {
+      const updated: HistoryItem = {
+        ...existing,
+        mastery: w.mastery,
+        nextReviewAt: w.nextReviewAt ? new Date(w.nextReviewAt).getTime() : null,
+        reviewCount: w.reviewCount,
+        lastReviewedAt: w.lastReviewedAt ? new Date(w.lastReviewedAt).getTime() : null,
+        easeFactor: w.easeFactor,
+      };
+      await idb.put(IDB_HISTORY_STORE, updated);
+      merged++;
+    } else if (data.source === "dicfr-extension") {
+      const item: HistoryItem = {
+        id: crypto.randomUUID(),
+        word: w.word,
+        normalizedWord: w.normalizedWord,
+        definition: w.definition,
+        pos: w.pos,
+        gender: w.gender,
+        lookupCount: w.lookupCount,
+        lastLookedUpAt: new Date(w.lastLookupAt).getTime(),
+        createdAt: new Date(w.firstLookupAt).getTime(),
+        mastery: w.mastery,
+        nextReviewAt: w.nextReviewAt ? new Date(w.nextReviewAt).getTime() : null,
+        reviewCount: w.reviewCount,
+        lastReviewedAt: w.lastReviewedAt ? new Date(w.lastReviewedAt).getTime() : null,
+        easeFactor: w.easeFactor,
+      };
+      await idb.add(IDB_HISTORY_STORE, item);
+      added++;
+    }
+  }
+
+  return { merged, added };
 }

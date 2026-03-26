@@ -252,6 +252,35 @@
       color: #c44;
       margin-top: 4px;
     }
+    #actions {
+      padding: 6px 14px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      gap: 6px;
+    }
+    .action-btn {
+      flex: 1;
+      padding: 5px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #fff;
+      font-size: 11px;
+      cursor: pointer;
+      color: #555;
+    }
+    .action-btn:hover {
+      background: #f5f5f5;
+      color: #111;
+    }
+    #import-file {
+      display: none;
+    }
+    #import-status {
+      font-size: 11px;
+      color: #4a9;
+      padding: 4px 14px;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -273,6 +302,12 @@
     </div>
     <div id="dl-error" class="dl-error"></div>
   </div>
+  <div id="actions">
+    <button id="export-btn" class="action-btn" type="button">Export</button>
+    <button id="import-btn" class="action-btn" type="button">Import</button>
+    <input id="import-file" type="file" accept=".json" />
+  </div>
+  <div id="import-status"></div>
   <div id="empty">
     Select a French word on any page to look it up.
   </div>

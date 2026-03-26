@@ -30,6 +30,36 @@ export interface HistoryItem {
   lookupCount: number;
   lastLookedUpAt: number;
   createdAt: number;
+  pos?: string | null;
+  gender?: string | null;
+  mastery?: number;
+  nextReviewAt?: number | null;
+  reviewCount?: number;
+  lastReviewedAt?: number | null;
+  easeFactor?: number;
+}
+
+export interface ExportData {
+  version: 1;
+  exportedAt: string;
+  source: "dicfr-extension" | "dicfr-app";
+  words: ExportWord[];
+}
+
+export interface ExportWord {
+  word: string;
+  normalizedWord: string;
+  definition: string;
+  pos?: string | null;
+  gender?: string | null;
+  lookupCount: number;
+  firstLookupAt: string;
+  lastLookupAt: string;
+  mastery: number;
+  nextReviewAt: string | null;
+  reviewCount: number;
+  lastReviewedAt: string | null;
+  easeFactor: number;
 }
 
 export type DownloadStatus =
@@ -53,7 +83,9 @@ export type Message =
   | { type: "GET_STATS" }
   | { type: "GET_SIMILAR"; word: string }
   | { type: "START_DOWNLOAD" }
-  | { type: "GET_DOWNLOAD_STATUS" };
+  | { type: "GET_DOWNLOAD_STATUS" }
+  | { type: "EXPORT_HISTORY" }
+  | { type: "IMPORT_HISTORY"; data: ExportData };
 
 export type LookupResponse = {
   found: boolean;

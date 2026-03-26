@@ -8,6 +8,8 @@ import {
   getHistoryCount,
   deleteHistory,
   getSimilarWords,
+  exportHistory,
+  importHistory,
 } from "../db";
 import { lookupAndSave } from "../core/lookup";
 import type { Message, DownloadState } from "../shared/types";
@@ -158,6 +160,14 @@ async function handleMessage(msg: Message) {
 
     case "GET_DOWNLOAD_STATUS":
       return downloadState;
+
+    case "EXPORT_HISTORY":
+      return exportHistory();
+
+    case "IMPORT_HISTORY": {
+      const result = await importHistory(msg.data);
+      return result;
+    }
 
     default:
       return { error: "Unknown message type" };

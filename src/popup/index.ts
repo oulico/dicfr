@@ -1,4 +1,4 @@
-import type { HistoryItem, DownloadState, Word, SimilarWord } from "../shared/types";
+import type { HistoryItem, DownloadState, ExportData, Word, SimilarWord } from "../shared/types";
 
 const listEl = document.getElementById("word-list") as HTMLElement;
 const countEl = document.getElementById("count") as HTMLElement;
@@ -7,6 +7,11 @@ const statsEl = document.getElementById("stats") as HTMLElement;
 
 const searchInput = document.getElementById("search-input") as HTMLInputElement;
 const searchResult = document.getElementById("search-result") as HTMLElement;
+
+const exportBtn = document.getElementById("export-btn") as HTMLButtonElement;
+const importBtn = document.getElementById("import-btn") as HTMLButtonElement;
+const importFile = document.getElementById("import-file") as HTMLInputElement;
+const importStatus = document.getElementById("import-status") as HTMLElement;
 
 const dlSection = document.getElementById("download-section") as HTMLElement;
 const dlBtn = document.getElementById("dl-btn") as HTMLButtonElement;
@@ -360,6 +365,54 @@ async function checkOngoingDownload() {
     startPolling();
   }
 }
+
+exportBtn.addEventListener("click", async () => {
+  const data: ExportData = await chrome.runtime.sendMessage({ type: "EXPORT_HISTORY" });
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const date = new Date().toISOString().slice(0, 10);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `dicfr-export-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+importBtn.addEventListener("click", () => {
+  importFile.click();
+});
+
+importFile.addEventListener("change", async () => {
+  const file = importFile.files?.[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const data: ExportData = JSON.parse(text);
+
+    if (data.version !== 1 || !Array.isArray(data.words)) {
+      throw new Error("Invalid file format");
+    }
+
+    const result = await chrome.runtime.sendMessage({ type: "IMPORT_HISTORY", data });
+    importStatus.textContent = `Imported: ${result.merged} merged, ${result.added} added`;
+    importStatus.style.display = "block";
+    setTimeout(() => { importStatus.style.display = "none"; }, 3000);
+    loadHistory();
+  } catch (err) {
+    importStatus.textContent = `Import failed: ${err instanceof Error ? err.message : "unknown error"}`;
+    importStatus.style.color = "#c44";
+    importStatus.style.display = "block";
+    setTimeout(() => {
+      importStatus.style.display = "none";
+      importStatus.style.color = "#4a9";
+    }, 3000);
+  }
+
+  importFile.value = "";
+});
 
 loadHistory();
 checkOngoingDownload();
