@@ -33,9 +33,11 @@ const entries = [
 function copyStaticAssets() {
   mkdirSync("dist/data", { recursive: true });
   mkdirSync("dist/wasm", { recursive: true });
+  mkdirSync("dist/icons", { recursive: true });
   cpSync("manifest.json", "dist/manifest.json");
   cpSync("src/popup/popup.html", "dist/popup.html");
   cpSync("data/seed.sql", "dist/data/seed.sql");
+  cpSync("icons", "dist/icons", { recursive: true });
   cpSync(
     "node_modules/sql.js/dist/sql-wasm.wasm",
     "dist/wasm/sql-wasm.wasm"

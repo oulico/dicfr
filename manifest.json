@@ -2,7 +2,13 @@
   "manifest_version": 3,
   "name": "dicfr",
   "version": "0.1.0",
-  "description": "French dictionary - select words to look up meanings",
+  "description": "Select any French word on a webpage to instantly look up its meaning. Build vocabulary with search history, spaced repetition export, and 100k+ word dictionary.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "permissions": ["storage", "alarms"],
   "host_permissions": ["<all_urls>"],
   "content_security_policy": {
