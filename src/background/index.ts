@@ -12,14 +12,98 @@ import {
   importHistory,
 } from "../db";
 import { lookupAndSave } from "../core/lookup";
-import type { Message, DownloadState } from "../shared/types";
+import type { Message, DownloadState, ExportData } from "../shared/types";
 
 const DICTIONARY_URL =
   "https://github.com/oulico/dicfr/releases/download/dict-v1/french-dictionary.db";
 
+const API_URL = "https://dicfr-api.manemis.workers.dev";
 const KEEP_ALIVE_ALARM = "dicfr-keep-alive";
 
 let downloadState: DownloadState = { status: "idle", progress: 0 };
+
+interface SyncStatus {
+  loggedIn: boolean;
+  email?: string;
+  lastSyncedAt?: string;
+}
+
+let syncStatus: SyncStatus = { loggedIn: false };
+
+async function getAuthToken(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    chrome.identity.getAuthToken({ interactive: true }, (token) => {
+      if (chrome.runtime.lastError || !token) {
+        reject(new Error(chrome.runtime.lastError?.message || "Auth failed"));
+      } else {
+        resolve(token);
+      }
+    });
+  });
+}
+
+async function syncLogin(): Promise<SyncStatus> {
+  const token = await getAuthToken();
+  const res = await fetch(`${API_URL}/auth`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  if (!res.ok) throw new Error("Auth failed");
+  const { user } = await res.json() as { user: { email: string } };
+  syncStatus = { loggedIn: true, email: user.email };
+  await chrome.storage.local.set({ syncToken: token, syncEmail: user.email });
+  return syncStatus;
+}
+
+async function syncLogout(): Promise<SyncStatus> {
+  await chrome.storage.local.remove(["syncToken", "syncEmail"]);
+  chrome.identity.removeCachedAuthToken({ token: "" });
+  syncStatus = { loggedIn: false };
+  return syncStatus;
+}
+
+async function getSavedToken(): Promise<string | null> {
+  const { syncToken, syncEmail } = await chrome.storage.local.get(["syncToken", "syncEmail"]);
+  if (syncToken && syncEmail) {
+    syncStatus = { loggedIn: true, email: syncEmail };
+    return syncToken;
+  }
+  return null;
+}
+
+async function syncPush(): Promise<{ synced: number }> {
+  const token = await getSavedToken();
+  if (!token) throw new Error("Not logged in");
+
+  const data = await exportHistory();
+  const res = await fetch(`${API_URL}/sync`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ words: data.words }),
+  });
+  if (!res.ok) throw new Error(`Sync push failed: ${res.status}`);
+  const result = await res.json() as { synced: number };
+  syncStatus.lastSyncedAt = new Date().toISOString();
+  return result;
+}
+
+async function syncPull(): Promise<{ merged: number; added: number }> {
+  const token = await getSavedToken();
+  if (!token) throw new Error("Not logged in");
+
+  const res = await fetch(`${API_URL}/sync`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Sync pull failed: ${res.status}`);
+  const data = await res.json() as ExportData;
+  const result = await importHistory(data);
+  syncStatus.lastSyncedAt = new Date().toISOString();
+  return result;
+}
 
 async function init() {
   try {
@@ -167,6 +251,25 @@ async function handleMessage(msg: Message) {
     case "IMPORT_HISTORY": {
       const result = await importHistory(msg.data);
       return result;
+    }
+
+    case "SYNC_LOGIN":
+      return syncLogin();
+
+    case "SYNC_LOGOUT":
+      return syncLogout();
+
+    case "SYNC_PUSH":
+      return syncPush();
+
+    case "SYNC_PULL": {
+      const pullResult = await syncPull();
+      return pullResult;
+    }
+
+    case "GET_SYNC_STATUS": {
+      await getSavedToken();
+      return syncStatus;
     }
 
     default:

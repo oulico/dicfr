@@ -20,6 +20,12 @@ const dlBar = document.getElementById("dl-bar") as HTMLElement;
 const dlStatusEl = document.getElementById("dl-status") as HTMLElement;
 const dlErrorEl = document.getElementById("dl-error") as HTMLElement;
 
+const syncLoginBtn = document.getElementById("sync-login-btn") as HTMLButtonElement;
+const syncBtn = document.getElementById("sync-btn") as HTMLButtonElement;
+const syncLogoutBtn = document.getElementById("sync-logout-btn") as HTMLButtonElement;
+const syncEmail = document.getElementById("sync-email") as HTMLElement;
+const syncMsg = document.getElementById("sync-msg") as HTMLElement;
+
 const SEED_THRESHOLD = 200;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 const searchStack: string[] = [];
@@ -414,5 +420,65 @@ importFile.addEventListener("change", async () => {
   importFile.value = "";
 });
 
+function showSyncMsg(text: string, isError = false) {
+  syncMsg.textContent = text;
+  syncMsg.style.color = isError ? "#c44" : "#4a9";
+  syncMsg.style.display = "block";
+  setTimeout(() => { syncMsg.style.display = "none"; }, 3000);
+}
+
+function updateSyncUI(status: { loggedIn: boolean; email?: string }) {
+  if (status.loggedIn && status.email) {
+    syncLoginBtn.style.display = "none";
+    syncEmail.textContent = status.email;
+    syncBtn.style.display = "";
+    syncLogoutBtn.style.display = "";
+  } else {
+    syncLoginBtn.style.display = "";
+    syncEmail.textContent = "";
+    syncBtn.style.display = "none";
+    syncLogoutBtn.style.display = "none";
+  }
+}
+
+syncLoginBtn.addEventListener("click", async () => {
+  syncLoginBtn.disabled = true;
+  try {
+    const status = await chrome.runtime.sendMessage({ type: "SYNC_LOGIN" });
+    updateSyncUI(status);
+    showSyncMsg(`Signed in as ${status.email}`);
+  } catch (err) {
+    showSyncMsg(err instanceof Error ? err.message : "Sign in failed", true);
+  }
+  syncLoginBtn.disabled = false;
+});
+
+syncBtn.addEventListener("click", async () => {
+  syncBtn.disabled = true;
+  syncBtn.textContent = "Syncing...";
+  try {
+    const pushResult = await chrome.runtime.sendMessage({ type: "SYNC_PUSH" });
+    const pullResult = await chrome.runtime.sendMessage({ type: "SYNC_PULL" });
+    showSyncMsg(`Synced: ${pushResult.synced} pushed, ${pullResult.merged + pullResult.added} pulled`);
+    loadHistory();
+  } catch (err) {
+    showSyncMsg(err instanceof Error ? err.message : "Sync failed", true);
+  }
+  syncBtn.textContent = "Sync";
+  syncBtn.disabled = false;
+});
+
+syncLogoutBtn.addEventListener("click", async () => {
+  await chrome.runtime.sendMessage({ type: "SYNC_LOGOUT" });
+  updateSyncUI({ loggedIn: false });
+  showSyncMsg("Signed out");
+});
+
+async function initSyncUI() {
+  const status = await chrome.runtime.sendMessage({ type: "GET_SYNC_STATUS" });
+  updateSyncUI(status);
+}
+
 loadHistory();
 checkOngoingDownload();
+initSyncUI();

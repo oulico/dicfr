@@ -85,7 +85,12 @@ export type Message =
   | { type: "START_DOWNLOAD" }
   | { type: "GET_DOWNLOAD_STATUS" }
   | { type: "EXPORT_HISTORY" }
-  | { type: "IMPORT_HISTORY"; data: ExportData };
+  | { type: "IMPORT_HISTORY"; data: ExportData }
+  | { type: "SYNC_LOGIN" }
+  | { type: "SYNC_PUSH" }
+  | { type: "SYNC_PULL" }
+  | { type: "SYNC_LOGOUT" }
+  | { type: "GET_SYNC_STATUS" };
 
 export type LookupResponse = {
   found: boolean;

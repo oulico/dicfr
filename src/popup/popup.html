@@ -281,6 +281,38 @@
       padding: 4px 14px;
       display: none;
     }
+    #sync-section {
+      padding: 8px 14px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+    #sync-email {
+      color: #888;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sync-btn {
+      padding: 4px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #fff;
+      font-size: 11px;
+      cursor: pointer;
+      color: #555;
+    }
+    .sync-btn:hover { background: #f5f5f5; }
+    .sync-btn:disabled { opacity: 0.5; cursor: default; }
+    #sync-msg {
+      font-size: 10px;
+      color: #4a9;
+      padding: 2px 14px;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -302,6 +334,13 @@
     </div>
     <div id="dl-error" class="dl-error"></div>
   </div>
+  <div id="sync-section">
+    <button id="sync-login-btn" class="sync-btn" type="button">Sign in</button>
+    <span id="sync-email"></span>
+    <button id="sync-btn" class="sync-btn" type="button" style="display:none">Sync</button>
+    <button id="sync-logout-btn" class="sync-btn" type="button" style="display:none">Sign out</button>
+  </div>
+  <div id="sync-msg"></div>
   <div id="actions">
     <button id="export-btn" class="action-btn" type="button">Export</button>
     <button id="import-btn" class="action-btn" type="button">Import</button>
