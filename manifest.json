@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "dicfr",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Select any French word on a webpage to look up its meaning. Save vocabulary and export for flashcard review.",
   "icons": {
     "16": "icons/icon-16.png",
@@ -9,11 +9,20 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": ["storage", "alarms", "identity"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": [
+    "alarms",
+    "identity"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "oauth2": {
     "client_id": "353654892895-rn2rkd5tpbjh68jl5hc54qf72g8p0dn7.apps.googleusercontent.com",
-    "scopes": ["openid", "email", "profile"]
+    "scopes": [
+      "openid",
+      "email",
+      "profile"
+    ]
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
@@ -27,15 +36,24 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["wasm/*", "data/*"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "wasm/*",
+        "data/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

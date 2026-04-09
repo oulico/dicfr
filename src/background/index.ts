@@ -52,22 +52,40 @@ async function syncLogin(): Promise<SyncStatus> {
   if (!res.ok) throw new Error("Auth failed");
   const { user } = await res.json() as { user: { email: string } };
   syncStatus = { loggedIn: true, email: user.email };
-  await chrome.storage.local.set({ syncToken: token, syncEmail: user.email });
   return syncStatus;
 }
 
 async function syncLogout(): Promise<SyncStatus> {
-  await chrome.storage.local.remove(["syncToken", "syncEmail"]);
   chrome.identity.removeCachedAuthToken({ token: "" });
   syncStatus = { loggedIn: false };
   return syncStatus;
 }
 
+async function getCachedToken(): Promise<string | null> {
+  return new Promise((resolve) => {
+    chrome.identity.getAuthToken({ interactive: false }, (token) => {
+      if (chrome.runtime.lastError || !token) {
+        resolve(null);
+      } else {
+        resolve(token);
+      }
+    });
+  });
+}
+
 async function getSavedToken(): Promise<string | null> {
-  const { syncToken, syncEmail } = await chrome.storage.local.get(["syncToken", "syncEmail"]);
-  if (syncToken && syncEmail) {
-    syncStatus = { loggedIn: true, email: syncEmail };
-    return syncToken;
+  const token = await getCachedToken();
+  if (token) {
+    if (!syncStatus.loggedIn) {
+      const res = await fetch(`${API_URL}/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const { user } = await res.json() as { user: { email: string } };
+        syncStatus = { loggedIn: true, email: user.email };
+      }
+    }
+    return token;
   }
   return null;
 }
